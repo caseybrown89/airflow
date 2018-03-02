@@ -14,11 +14,11 @@ complicated, a line by line explanation follows below.
 .. code:: python
 
     """
-    Code that goes along with the Airflow located at:
-    http://airflow.readthedocs.org/en/latest/tutorial.html
+    Code that goes along with the Airflow tutorial located at:
+    https://github.com/airbnb/airflow/blob/master/airflow/example_dags/tutorial.py
     """
     from airflow import DAG
-    from airflow.operators import BashOperator
+    from airflow.operators.bash_operator import BashOperator
     from datetime import datetime, timedelta
 
 
@@ -26,7 +26,7 @@ complicated, a line by line explanation follows below.
         'owner': 'airflow',
         'depends_on_past': False,
         'start_date': datetime(2015, 6, 1),
-        'email': ['airflow@airflow.com'],
+        'email': ['airflow@example.com'],
         'email_on_failure': False,
         'email_on_retry': False,
         'retries': 1,
@@ -39,7 +39,7 @@ complicated, a line by line explanation follows below.
 
     dag = DAG('tutorial', default_args=default_args)
 
-    # t1, t2 and t3 are examples of tasks created by instatiating operators
+    # t1, t2 and t3 are examples of tasks created by instantiating operators
     t1 = BashOperator(
         task_id='print_date',
         bash_command='date',
@@ -100,7 +100,7 @@ Airflow DAG object. Let's start by importing the libraries we will need.
     from airflow import DAG
 
     # Operators; we need this to operate!
-    from airflow.operators import BashOperator
+    from airflow.operators.bash_operator import BashOperator
 
 Default Arguments
 -----------------
@@ -117,7 +117,7 @@ of default parameters that we can use when creating tasks.
         'owner': 'airflow',
         'depends_on_past': False,
         'start_date': datetime(2015, 6, 1),
-        'email': ['airflow@airflow.com'],
+        'email': ['airflow@example.com'],
         'email_on_failure': False,
         'email_on_retry': False,
         'retries': 1,
@@ -141,7 +141,7 @@ Instantiate a DAG
 
 We'll need a DAG object to nest our tasks into. Here we pass a string
 that defines the ``dag_id``, which serves as a unique identifier for your DAG.
-We also pass the default argument dictionary that we just defined and 
+We also pass the default argument dictionary that we just defined and
 define a ``schedule_interval`` of 1 day for the DAG.
 
 .. code:: python
@@ -195,7 +195,8 @@ templates.
 This tutorial barely scratches the surface of what you can do with
 templating in Airflow, but the goal of this section is to let you know
 this feature exists, get you familiar with double curly brackets, and
-point to the most common template variable: ``{{ ds }}``.
+point to the most common template variable: ``{{ ds }}`` (today's "date
+stamp").
 
 .. code:: python
 
@@ -230,6 +231,16 @@ pipeline code, allowing for proper code highlighting in files composed in
 different languages, and general flexibility in structuring pipelines. It is
 also possible to define your ``template_searchpath`` as pointing to any folder
 locations in the DAG constructor call.
+
+Using that same DAG constructor call, it is possible to define
+``user_defined_macros`` which allow you to specify your own variables.
+For example, passing ``dict(foo='bar')`` to this argument allows you
+to use ``{{ foo }}`` in your templates. Moreover, specifying
+``user_defined_filters`` allow you to register you own filters. For example,
+passing ``dict(hello=lambda name: 'Hello %s' % name)`` to this argument allows
+you to use ``{{ 'world' | hello }}`` in your templates. For more information
+regarding custom filters have a look at the
+`Jinja Documentation <http://jinja.pocoo.org/docs/dev/api/#writing-filters>`_
 
 For more information on the variables and macros that can be referenced
 in templates, make sure to read through the :ref:`macros` section
@@ -270,7 +281,7 @@ something like this:
     http://airflow.readthedocs.org/en/latest/tutorial.html
     """
     from airflow import DAG
-    from airflow.operators import BashOperator
+    from airflow.operators.bash_operator import BashOperator
     from datetime import datetime, timedelta
 
 
@@ -278,7 +289,7 @@ something like this:
         'owner': 'airflow',
         'depends_on_past': False,
         'start_date': datetime(2015, 6, 1),
-        'email': ['airflow@airflow.com'],
+        'email': ['airflow@example.com'],
         'email_on_failure': False,
         'email_on_retry': False,
         'retries': 1,
@@ -292,7 +303,7 @@ something like this:
     dag = DAG(
         'tutorial', default_args=default_args, schedule_interval=timedelta(1))
 
-    # t1, t2 and t3 are examples of tasks created by instatiating operators
+    # t1, t2 and t3 are examples of tasks created by instantiating operators
     t1 = BashOperator(
         task_id='print_date',
         bash_command='date',
@@ -358,8 +369,8 @@ Let's run a few commands to validate this script further.
 
 Testing
 '''''''
-Let's test by running the actual task instances on a specific date. The 
-date specified in this context is an ``execution_date``, which simulates the 
+Let's test by running the actual task instances on a specific date. The
+date specified in this context is an ``execution_date``, which simulates the
 scheduler running your task or dag at a specific date + time:
 
 .. code-block:: bash
@@ -410,7 +421,6 @@ which are used to populate the run schedule with task instances from this dag.
 
     # start your backfill on a date range
     airflow backfill tutorial -s 2015-06-01 -e 2015-06-07
-
 
 What's Next?
 -------------

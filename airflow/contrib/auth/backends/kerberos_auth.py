@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import flask_login
 from flask_login import login_required, current_user, logout_user
 from flask import flash
@@ -15,11 +29,11 @@ from flask import url_for, redirect
 from airflow import settings
 from airflow import models
 from airflow import configuration
-
-import logging
+from airflow.utils.db import provide_session
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 login_manager = flask_login.LoginManager()
-login_manager.login_view = 'airflow.login'  # Calls login() bellow
+login_manager.login_view = 'airflow.login'  # Calls login() below
 login_manager.login_message = None
 
 
@@ -27,7 +41,7 @@ class AuthenticationError(Exception):
     pass
 
 
-class KerberosUser(models.User):
+class KerberosUser(models.User, LoggingMixin):
     def __init__(self, user):
         self.user = user
 
@@ -73,19 +87,17 @@ class KerberosUser(models.User):
 
 
 @login_manager.user_loader
-def load_user(userid):
+@provide_session
+def load_user(userid, session=None):
     if not userid or userid == 'None':
         return None
 
-    session = settings.Session()
     user = session.query(models.User).filter(models.User.id == int(userid)).first()
-    session.expunge_all()
-    session.commit()
-    session.close()
     return KerberosUser(user)
 
 
-def login(self, request):
+@provide_session
+def login(self, request, session=None):
     if current_user.is_authenticated():
         flash("You are already logged in")
         return redirect(url_for('index'))
@@ -107,7 +119,6 @@ def login(self, request):
     try:
         KerberosUser.authenticate(username, password)
 
-        session = settings.Session()
         user = session.query(models.User).filter(
             models.User.username == username).first()
 
@@ -120,7 +131,6 @@ def login(self, request):
         session.commit()
         flask_login.login_user(KerberosUser(user))
         session.commit()
-        session.close()
 
         return redirect(request.args.get("next") or url_for("admin.index"))
     except AuthenticationError:

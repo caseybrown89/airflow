@@ -1,13 +1,27 @@
-from builtins import str
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from builtins import zip
 from collections import OrderedDict
 import json
-import logging
 
-from airflow.utils import AirflowException
-from airflow.hooks import PrestoHook, HiveMetastoreHook, MySqlHook
+from airflow.exceptions import AirflowException
+from airflow.hooks.mysql_hook import MySqlHook
+from airflow.hooks.presto_hook import PrestoHook
+from airflow.hooks.hive_hooks import HiveMetastoreHook
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 
 
 class HiveStatsCollectionOperator(BaseOperator):
@@ -125,15 +139,15 @@ class HiveStatsCollectionOperator(BaseOperator):
         """.format(**locals())
 
         hook = PrestoHook(presto_conn_id=self.presto_conn_id)
-        logging.info('Executing SQL check: ' + sql)
+        self.log.info('Executing SQL check: %s', sql)
         row = hook.get_first(hql=sql)
-        logging.info("Record: " + str(row))
+        self.log.info("Record: %s", row)
         if not row:
             raise AirflowException("The query returned None")
 
         part_json = json.dumps(self.partition, sort_keys=True)
 
-        logging.info("Deleting rows from previous runs if they exist")
+        self.log.info("Deleting rows from previous runs if they exist")
         mysql = MySqlHook(self.mysql_conn_id)
         sql = """
         SELECT 1 FROM hive_stats
@@ -153,7 +167,7 @@ class HiveStatsCollectionOperator(BaseOperator):
             """.format(**locals())
             mysql.run(sql)
 
-        logging.info("Pivoting and loading cells into the Airflow db")
+        self.log.info("Pivoting and loading cells into the Airflow db")
         rows = [
             (self.ds, self.dttm, self.table, part_json) +
             (r[0][0], r[0][1], r[1])

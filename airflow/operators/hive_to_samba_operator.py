@@ -1,9 +1,22 @@
-import logging
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 import tempfile
 
-from airflow.hooks import HiveServer2Hook, SambaHook
+from airflow.hooks.hive_hooks import HiveServer2Hook
+from airflow.hooks.samba_hook import SambaHook
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 
 
 class Hive2SambaOperator(BaseOperator):
@@ -40,7 +53,7 @@ class Hive2SambaOperator(BaseOperator):
         samba = SambaHook(samba_conn_id=self.samba_conn_id)
         hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)
         tmpfile = tempfile.NamedTemporaryFile()
-        logging.info("Fetching file from Hive")
+        self.log.info("Fetching file from Hive")
         hive.to_csv(hql=self.hql, csv_filepath=tmpfile.name)
-        logging.info("Pushing to samba")
+        self.log.info("Pushing to samba")
         samba.push_from_local(self.destination_filepath, tmpfile.name)

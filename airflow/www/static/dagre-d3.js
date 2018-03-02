@@ -1,5 +1,6 @@
 ;(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-var global=self;/**
+var global=self;
+/**
  * @license
  * Copyright (c) 2012-2013 Chris Pettitt
  *
@@ -493,7 +494,7 @@ function defaultZoomSetup(graph, svg) {
 
 // By default allow pan and zoom
 function defaultZoom(graph, svg) {
-  
+
   this.zoom_obj = d3.behavior.zoom().on('zoom', function() {
     svg.attr('transform', 'translate(' + d3.event.translate + ')scale(' + d3.event.scale + ')');
   });
@@ -2654,7 +2655,7 @@ function acyclic(g) {
   var onStack = {},
       visited = {},
       reverseCount = 0;
-  
+
   function dfs(u) {
     if (u in visited) return;
     visited[u] = onStack[u] = true;
@@ -3110,7 +3111,7 @@ function initCutValues(graph, spanningTree) {
  */
 function computeLowLim(tree) {
   var postOrderNum = 0;
-  
+
   function dfs(n) {
     var children = tree.successors(n);
     var low = postOrderNum;
@@ -3837,7 +3838,7 @@ Digraph.prototype.isDirected = function() {
 /*
  * Returns all successors of the node with the id `u`. That is, all nodes
  * that have the node `u` as their source are returned.
- * 
+ *
  * If no node `u` exists in the graph this function throws an Error.
  *
  * @param {String} u a node id
@@ -3851,7 +3852,7 @@ Digraph.prototype.successors = function(u) {
 /*
  * Returns all predecessors of the node with the id `u`. That is, all nodes
  * that have the node `u` as their target are returned.
- * 
+ *
  * If no node `u` exists in the graph this function throws an Error.
  *
  * @param {String} u a node id

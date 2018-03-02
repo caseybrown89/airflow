@@ -1,23 +1,25 @@
 # Copyright 2015 Matthew Pelland (matt@pelland.io)
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import logging
-
 import flask_login
-from flask_login import (
-    login_user, current_user,
-    logout_user, login_required
-)
+
+# Need to expose these downstream
+# pylint: disable=unused-import
+from flask_login import (current_user,
+                         logout_user,
+                         login_required,
+                         login_user)
+# pylint: enable=unused-import
 
 from flask import url_for, redirect, request
 
@@ -25,8 +27,11 @@ from flask_oauthlib.client import OAuth
 
 from airflow import models, configuration, settings
 from airflow.configuration import AirflowConfigException
+from airflow.utils.db import provide_session
+from airflow.utils.log.logging_mixin import LoggingMixin
 
-_log = logging.getLogger(__name__)
+log = LoggingMixin().log
+
 
 def get_config_param(param):
     return str(configuration.get('github_enterprise', param))
@@ -96,7 +101,7 @@ class GHEAuthBackend(object):
             consumer_key=get_config_param('client_id'),
             consumer_secret=get_config_param('client_secret'),
             # need read:org to get team member list
-            request_token_params={'scope': 'user,read:org'},
+            request_token_params={'scope': 'user:email,read:org'},
             base_url=self.ghe_host,
             request_token_url=None,
             access_token_method='POST',
@@ -114,7 +119,7 @@ class GHEAuthBackend(object):
                                     self.oauth_callback)
 
     def login(self, request):
-        _log.debug('Redirecting user to GHE login')
+        log.debug('Redirecting user to GHE login')
         return self.ghe_oauth.authorize(callback=url_for(
             'ghe_oauth_callback',
             _external=True,
@@ -133,13 +138,21 @@ class GHEAuthBackend(object):
 
     def ghe_team_check(self, username, ghe_token):
         try:
-            teams = [team.strip()
-                     for team in
-                     get_config_param('allowed_teams').split(',')]
+            # the response from ghe returns the id of the team as an integer
+            try:
+                allowed_teams = [int(team.strip())
+                                 for team in
+                                 get_config_param('allowed_teams').split(',')]
+            except ValueError:
+                # this is to deprecate using the string name for a team
+                raise ValueError('it appears that you are using the string name for a team, '
+                                 'please use the id number instead')
+
         except AirflowConfigException:
             # No allowed teams defined, let anyone in GHE in.
             return True
 
+        # https://developer.github.com/v3/orgs/teams/#list-user-teams
         resp = self.ghe_oauth.get(self.ghe_api_route('/user/teams'),
                                   token=(ghe_token, ''))
 
@@ -149,31 +162,31 @@ class GHEAuthBackend(object):
                     resp.status if resp else 'None'))
 
         for team in resp.data:
-            # team json object has a slug cased team name field aptly named
-            # 'slug'
-            if team['slug'] in teams:
+            # mylons: previously this line used to be if team['slug'] in teams
+            # however, teams are part of organizations. organizations are unique,
+            # but teams are not therefore 'slug' for a team is not necessarily unique.
+            # use id instead
+            if team['id'] in allowed_teams:
                 return True
 
-        _log.debug('Denying access for user "%s", not a member of "%s"',
+        log.debug('Denying access for user "%s", not a member of "%s"',
                    username,
-                   str(teams))
+                   str(allowed_teams))
 
         return False
 
-    def load_user(self, userid):
+    @provide_session
+    def load_user(self, userid, session=None):
         if not userid or userid == 'None':
             return None
 
-        session = settings.Session()
         user = session.query(models.User).filter(
             models.User.id == int(userid)).first()
-        session.expunge_all()
-        session.commit()
-        session.close()
         return GHEUser(user)
 
-    def oauth_callback(self):
-        _log.debug('GHE OAuth callback called')
+    @provide_session
+    def oauth_callback(self, session=None):
+        log.debug('GHE OAuth callback called')
 
         next_url = request.args.get('next') or url_for('admin.index')
 
@@ -193,10 +206,8 @@ class GHEAuthBackend(object):
                 return redirect(url_for('airflow.noaccess'))
 
         except AuthenticationError:
-            _log.exception('')
+            log.exception('')
             return redirect(url_for('airflow.noaccess'))
-
-        session = settings.Session()
 
         user = session.query(models.User).filter(
             models.User.username == username).first()
@@ -211,11 +222,11 @@ class GHEAuthBackend(object):
         session.commit()
         login_user(GHEUser(user))
         session.commit()
-        session.close()
 
         return redirect(next_url)
 
 login_manager = GHEAuthBackend()
+
 
 def login(self, request):
     return login_manager.login(request)
